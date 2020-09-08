@@ -1,6 +1,5 @@
 /// CHIP8 Entry point
 
-use std::fmt;
 use crate::cpu;
 use crate::utils;
 use crate::bus::Bus;
@@ -31,11 +30,6 @@ impl Console {
         Console { bus: Bus::new(), cpu: cpu::Cpu::new() }
     }
 
-    // Render human readable display
-    pub fn render(&self) -> String {
-        self.to_string()
-    }
-
     // Loads ROM into memory
     pub fn load_rom(&mut self, rom: &[u8]) {
         let start_addr = cpu::PROG_START;
@@ -57,8 +51,8 @@ impl Console {
    }
 
     // Gets display memory
-    pub fn get_vram(&self) -> Vec<u8> {
-        self.bus.get_vram()
+    pub fn get_vram(&self) -> *const u8 {
+        self.bus.get_vram().as_ptr()
     }
 
     // Check whether to beep or not
@@ -82,30 +76,4 @@ impl Console {
         self.bus.get_pressed_key()
     }
 
-}
-
-impl fmt::Display for Console {
-
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let display_width = 64;
-        let sound = if self.beep() {"ON"} else {"OFF"};
-
-        let pressed_key = match self.get_pressed_key() {
-            None => String::from("None"),
-            Some(k) => format!("{:x}", k)
-        };
-
-        for row in self.get_vram().as_slice().chunks(display_width as usize) {
-            for &px in row {
-                let fill = if px == 0 { '\u{25a0}' } else { '\u{25a1}' };
-                write!(f, "{}", fill)?;
-            }
-
-            write!(f, "\n")?
-        }
-
-        write!(f, "KEY - {}\n", pressed_key)?;
-        write!(f, "SND - {}\n", sound)?;
-        Ok(())
-    }
 }

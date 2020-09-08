@@ -95,13 +95,6 @@ impl Cpu {
         opcode: u16,
         bus: &mut Bus
     ) -> ProgramCounterKind {
-        utils::log_str("PROGRAM COUNTER");
-        utils::log_u16(self.pc);
-
-        utils::log_str("OPCODE:");
-        utils::log_u16(opcode);
-
-
         let x = ((opcode & 0x0F00) >> 8) as usize;
         let y = ((opcode & 0x00F0) >> 4) as usize;
 
