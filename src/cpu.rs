@@ -52,11 +52,22 @@ impl Cpu {
 
     // Execute one cpu cycle
     pub fn tick(&mut self, bus: &mut Bus) {
+        utils::log_str("REGISTERS V0 - v16");
+        utils::log_u8_array(&self.v);
+        utils::log_str("MEMORY INDEX");
+        utils::log_u16(self.idx);
+        utils::log_str("MEMORY BLOCK");
+        utils::log_u8(bus.memread(self.idx));
+        utils::log_str("STACK");
+        utils::log_u16_array(&self.stack);
+
         let hi = bus.memread(self.pc) as u16;
         let lo = bus.memread(self.pc + 1) as u16;
 
         // Addresses are stored big endian
         let opcode = (hi << 8) | lo;
+        utils::log_str("OPCODE");
+        utils::log_u16(opcode);
 
         // Decrement delay timer
         if self.dt > 0 {
@@ -148,6 +159,7 @@ impl Cpu {
 
     // CLRS
     fn call_00e0(&mut self, bus: &mut Bus) -> ProgramCounterKind {
+        utils::log_str("CLRS");
         bus.clrs();
         ProgramCounterKind::Next
     }
@@ -155,11 +167,13 @@ impl Cpu {
     // RET
     fn call_00ee(&mut self) -> ProgramCounterKind {
         let addr = self.stack.pop().unwrap();
+        utils::log_str(&format!("RET {:x}", addr));
         ProgramCounterKind::Jump(addr)
     }
 
     // JMP
     fn call_1nnn(&mut self, nnn: u16) -> ProgramCounterKind {
+        utils::log_str(&format!("JMP {:x}", nnn));
         ProgramCounterKind::Jump(nnn)
     }
 
@@ -167,35 +181,41 @@ impl Cpu {
     fn call_2nnn(&mut self, nnn: u16) -> ProgramCounterKind {
         let curr = self.pc + 2;
         self.stack.push(curr);
+        utils::log_str(&format!("CALL {:x}", nnn));
         ProgramCounterKind::Jump(nnn)
     }
 
     // SE Vx KK
     fn call_3xnn(&mut self, x: usize, nn: u8) -> ProgramCounterKind {
+        utils::log_str(&format!("SE v{:x} {:x}", x, nn));
         if self.v[x] == nn {ProgramCounterKind::Skip}
         else {ProgramCounterKind::Next}
     }
 
     // SNE Vx KK
     fn call_4xnn( &mut self, x: usize, nn: u8) -> ProgramCounterKind {
-         if self.v[x] == nn {ProgramCounterKind::Next}
+        utils::log_str(&format!("SNE v{:x} {:x}", x, nn));
+        if self.v[x] == nn {ProgramCounterKind::Next}
          else {ProgramCounterKind::Skip}
     }
 
     // SE Vx Vy
     fn call_5xy0(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("SE v{:x} v{:x}", x, y));
         if self.v[x] == self.v[y] {ProgramCounterKind::Skip}
         else {ProgramCounterKind::Next}
     }
 
     // LD Vx NN
     fn call_6xnn(&mut self, x: usize, nn: u8) -> ProgramCounterKind {
+        utils::log_str(&format!("LD v{:x} {:x}", x, nn));
         self.v[x] = nn;
         ProgramCounterKind::Next
     }
 
     // ADD Vx NN
     fn call_7xnn(&mut self, x: usize, nn: u8) -> ProgramCounterKind {
+        utils::log_str(&format!("ADD v{:x} {:x}", x, nn));
         let (sum, _) = self.v[x].overflowing_add(nn);
         self.v[x] = sum;
         ProgramCounterKind::Next
@@ -203,24 +223,28 @@ impl Cpu {
 
     // LD Vx = Vy
     fn call_8xy0(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD v{:x} v{:x}", x, y));
         self.v[x] = self.v[y] ;
         ProgramCounterKind::Next
     }
 
     // Vx = Vx | Vy
      fn call_8xy1(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("OR v{:x} v{:x}", x, y));
         self.v[x] = self.v[x] | self.v[y];
         ProgramCounterKind::Next
     }
 
     // Vx = Vx & Vy
     fn call_8xy2(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("AND v{:x} v{:x}", x, y));
         self.v[x] = self.v[x] & self.v[y];
         ProgramCounterKind::Next
     }
 
     // Vx = Vx ^ Vy
     fn call_8xy3(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("XOR v{:x} v{:x}", x, y));
         self.v[x] = self.v[x] ^ self.v[y];
         ProgramCounterKind::Next
     }
@@ -228,6 +252,8 @@ impl Cpu {
     // Vx = Vx + Vy; Vf = carry
     fn call_8xy4(&mut self, x: usize, y: usize) -> ProgramCounterKind {
         let (sum, carry) = self.v[x].overflowing_add(self.v[y]);
+        utils::log_str(&format!("ADD v{:x} v{:x}", x, y));
+        utils::log_str(&format!("LD vf {:x}", carry as u8));
         self.v[x] = sum;
         self.v[0xf] = if carry {1} else {0};
         ProgramCounterKind::Next
@@ -236,6 +262,8 @@ impl Cpu {
     // Vx = Vx - Vy; Vf = borrow
     fn call_8xy5(&mut self, x: usize, y: usize) -> ProgramCounterKind {
         let (sub, borrow) = self.v[x].overflowing_sub(self.v[y]);
+        utils::log_str(&format!("SUB v{:x} v{:x}", x, y));
+        utils::log_str(&format!("LD vf {:x}", borrow as u8));
         self.v[x] = sub;
         self.v[0xf] = if borrow {0} else {1};
         ProgramCounterKind::Next
@@ -243,7 +271,10 @@ impl Cpu {
 
     // SHR Vx
     fn call_8xy6(&mut self, x: usize, _y: usize) -> ProgramCounterKind {
-        self.v[0xF] = self.v[x] & 0x1;
+        let lsb = self.v[x] & 0x1;
+        utils::log_str(&format!("SHR v{:x}", x));
+        utils::log_str(&format!("LD vf {:x}", lsb));
+        self.v[0xF] = lsb;
         self.v[x] >>= 1;
         ProgramCounterKind::Next
     }
@@ -251,6 +282,8 @@ impl Cpu {
     // Vx = Vy - Vx; Vf = Borrow
     fn call_8xy7(&mut self, x: usize, y: usize) -> ProgramCounterKind {
         let (sub, borrow) = self.v[y].overflowing_sub(self.v[x]);
+        utils::log_str(&format!("SUB v{:x} v{:x}", y, x));
+        utils::log_str(&format!("LD vf {:x}", borrow as u8));
         self.v[x] = sub;
         self.v[0xf] = if borrow {0} else {1};
         ProgramCounterKind::Next
@@ -258,44 +291,56 @@ impl Cpu {
 
     // SHL Vx
     fn call_8xye(&mut self, x: usize, _y: usize) -> ProgramCounterKind {
-        self.v[0xF] = self.v[x] & 0x80;
+        let msb = self.v[x] & 0x80;
+        utils::log_str(&format!("SHL v{:x}", x));
+        utils::log_str(&format!("LD vf {:x}", msb));
+        self.v[0xF] = msb;
         self.v[x] <<= 1;
         ProgramCounterKind::Next
     }
 
     // SNE Vx = Vy
     fn call_9xy0(&mut self, x: usize, y: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("SNE v{:x} v{:x}", x, y));
         if self.v[x] == self.v[y] {ProgramCounterKind::Next}
         else {ProgramCounterKind::Skip}
     }
 
     // i = nnn
     fn call_annn(&mut self, nnn: u16) -> ProgramCounterKind {
+        utils::log_str(&format!("LD idx {:x}", nnn));
         self.idx = nnn;
         ProgramCounterKind::Next
     }
 
     // JMP V0 + nnn
     fn call_bnnn(&mut self, nnn: u16) -> ProgramCounterKind {
+        utils::log_str(&format!("JMP v0 + {:x}", nnn));
         ProgramCounterKind::Jump(self.v[0] as u16 + nnn)
     }
 
     // Vx = RND & nnn
     fn call_cxnn(&mut self, x: usize, nn: u8) -> ProgramCounterKind {
         let v = utils::get_random_u8();
+        utils::log_str(&format!("LD v{:x} RND + {:x}", x, nn));
         self.v[x] = v & nn;
         ProgramCounterKind::Next
     }
 
     // DRAW x y n
     fn call_dxyn(&mut self, bus: &mut Bus, x: usize, y: usize, n: u8) -> ProgramCounterKind {
-        let collision = bus.draw(x as u8, y as u8, self.idx, n as u16);
+        utils::log_str(&format!("DRAW v{:x} v{:x} {:x}", x, y, n));
+        let vx = self.v[x as usize];
+        let vy = self.v[y as usize];
+        let collision = bus.draw(vx, vy, self.idx, n as u16);
         self.v[0xf] = if collision {1} else {0};
         ProgramCounterKind::Next
     }
 
     // SKIP if Keypressed
     fn call_ex9e(&self, bus: &Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("SE KEYPRESS v{:x}", x));
+
         match bus.get_pressed_key() {
             None => ProgramCounterKind::Next,
             Some(k) => if k == self.v[x] {ProgramCounterKind::Skip}
@@ -305,6 +350,7 @@ impl Cpu {
 
     // SKIP if !Keypressed
     fn call_exa1(&mut self, bus: &Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("SNE KEYPRESS v{:x}", x));
         match bus.get_pressed_key() {
             None => ProgramCounterKind::Next,
             Some(k) => if k == self.v[x] {ProgramCounterKind::Next}
@@ -314,12 +360,14 @@ impl Cpu {
 
     // Vx = Delay
     fn call_fx07(&mut self, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD v{:x} dt", x));
         self.v[x] = self.dt;
         ProgramCounterKind::Next
     }
 
     // Await Vx keypress
     fn call_fx0a(&self, bus: &Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("AWAIT KEYPRESS v{:x}", x));
         match bus.get_pressed_key() {
             None => ProgramCounterKind::Jump(self.pc), // Loop
             Some(k) => if k == self.v[x] {ProgramCounterKind::Next}
@@ -329,18 +377,21 @@ impl Cpu {
 
     // Delay = Vx
     fn call_fx15(&mut self, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD dt v{:x}", x));
         self.dt = self.v[x];
         ProgramCounterKind::Next
     }
 
     // Sound = Vx
     fn call_fx18(&mut self, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD st v{:x}", x));
         self.st = self.v[x];
         ProgramCounterKind::Next
     }
 
     // i = ADD Vx i
     fn call_fx1e(&mut self, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("ADD v{:x} i", x));
         let (sum, _) = (self.v[x] as u16).overflowing_add(self.idx);
         self.idx = sum;
         ProgramCounterKind::Next
@@ -348,12 +399,17 @@ impl Cpu {
 
     // I = Sprite_addr
     fn call_fx29(&mut self, x: usize) -> ProgramCounterKind {
-        self.idx = (self.v[x] * 5) as u16;
+        let sprite_addr = (self.v[x] * 5) as u16;
+        utils::log_str(&format!("LD i SPRITE_ADDR {:x}", sprite_addr));
+        self.idx = sprite_addr;
         ProgramCounterKind::Next
     }
 
     // I..i + 2 = BCD(Vx)
     fn call_fx33(&self, bus: &mut Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD I v{:x} / 100", x));
+        utils::log_str(&format!("LD I + 1 (v{:x} / 10) % 10", x));
+        utils::log_str(&format!("LD I + 2 (v{:x} % 100) % 10", x));
         bus.memwrite(self.idx, self.v[x] / 100);
         bus.memwrite(self.idx + 1, (self.v[x] / 10) % 10);
         bus.memwrite(self.idx + 2, (self.v[x] % 100) % 10);
@@ -362,6 +418,8 @@ impl Cpu {
 
     // MEM = V0..Vx
     fn call_fx55(&self, bus: &mut Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("DUMP v0 ..v{:x}", x));
+
         for v in 0..=x {
             bus.memwrite(self.idx + v as u16, self.v[v]);
         }
@@ -371,6 +429,8 @@ impl Cpu {
 
     // V0..Vx = MEM
     fn call_fx65(&mut self, bus: &Bus, x: usize) -> ProgramCounterKind {
+        utils::log_str(&format!("LD v0 ..v{:x}", x));
+
         for v in 0..=x {
             self.v[v] = bus.memread(self.idx + v as u16);
         }

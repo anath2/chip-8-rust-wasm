@@ -18,11 +18,22 @@ pub fn log_str(message: &str) {
 }
 
 
+pub fn log_u8(message: u8) {
+    web_sys::console::log_1(&format!("{:0x}", message).into())
+}
+
+
 pub fn log_u16(message: u16) {
     web_sys::console::log_1(&format!("{:0x}", message).into())
 }
 
+
 pub fn log_u8_array(message: &[u8]) {
+    web_sys::console::log_1(&format!("{:?}", message).into())
+}
+
+
+pub fn log_u16_array(message: &[u16]) {
     web_sys::console::log_1(&format!("{:?}", message).into())
 }
 
