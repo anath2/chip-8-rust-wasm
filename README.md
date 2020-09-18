@@ -4,5 +4,5 @@
 
 ## Installation
 - Build Wasm package with `wasm-pack build`
-- CD into `www` and install packages
+- CD into `frontend` and install packages
 - run the server with `npm start`. Emulator should be up on localhost:8080
