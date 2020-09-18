@@ -1,6 +1,6 @@
 # CHIP 8 Emulator in Web Assembly and Rust
 
-[PONG IN CHIP8](Screenshot.png)
+![PONG IN CHIP8](Screenshot.png)
 
 ## Installation
 - Build Wasm package with `wasm-pack build`
